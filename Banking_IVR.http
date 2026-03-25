@@ -1,0 +1,56 @@
+@Banking_IVR_HostAddress = http://localhost:5115
+@MSISDN = 2348012345678
+
+POST {{Banking_IVR_HostAddress}}/api/ivr/start
+Content-Type: application/x-www-form-urlencoded
+
+MSISDN={{MSISDN}}
+
+###
+
+POST {{Banking_IVR_HostAddress}}/api/ivr/set-language
+Content-Type: application/x-www-form-urlencoded
+
+MSISDN={{MSISDN}}&Digits=1
+
+###
+
+POST {{Banking_IVR_HostAddress}}/api/ivr/menu-action
+Content-Type: application/x-www-form-urlencoded
+
+MSISDN={{MSISDN}}&Digits=2
+
+###
+
+POST {{Banking_IVR_HostAddress}}/api/ivr/confirm-recipient
+Content-Type: application/x-www-form-urlencoded
+
+MSISDN={{MSISDN}}&Digits=0123456789
+
+###
+
+POST {{Banking_IVR_HostAddress}}/api/ivr/recipient-action
+Content-Type: application/x-www-form-urlencoded
+
+MSISDN={{MSISDN}}&Digits=1
+
+###
+
+POST {{Banking_IVR_HostAddress}}/api/ivr/confirm-details
+Content-Type: application/x-www-form-urlencoded
+
+MSISDN={{MSISDN}}&Digits=5000
+
+###
+
+POST {{Banking_IVR_HostAddress}}/api/ivr/transfer-pin
+Content-Type: application/x-www-form-urlencoded
+
+MSISDN={{MSISDN}}&Digits=1
+
+###
+
+POST {{Banking_IVR_HostAddress}}/api/ivr/execute-transfer
+Content-Type: application/x-www-form-urlencoded
+
+MSISDN={{MSISDN}}&Digits=1234
