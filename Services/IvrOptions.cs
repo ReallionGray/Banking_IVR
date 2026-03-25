@@ -23,4 +23,6 @@ public sealed class IvrOptions
 
     [Required]
     public string AudioBasePath { get; init; } = "/audio";
+
+    public string? PublicBaseUrl { get; init; }
 }

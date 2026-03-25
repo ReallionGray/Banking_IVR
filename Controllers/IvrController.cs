@@ -1,6 +1,7 @@
 using Banking_IVR.Services;
 using Banking_IVR.Twiml;
 using System.Globalization;
+using System.IO;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
@@ -16,6 +17,7 @@ public class IvrController : ControllerBase
     private readonly ILogger<IvrController> _logger;
     private readonly IvrOptions _options;
     private readonly IHostEnvironment _environment;
+    private readonly IWebHostEnvironment _webHostEnvironment;
     private static readonly HashSet<string> AudioFirstLanguages = ["pidgin", "yo", "ig", "ha"];
     private static readonly HashSet<string> AudioPromptKeys =
     [
@@ -38,7 +40,8 @@ public class IvrController : ControllerBase
         ISessionService session,
         IOptions<IvrOptions> options,
         ILogger<IvrController> logger,
-        IHostEnvironment environment)
+        IHostEnvironment environment,
+        IWebHostEnvironment webHostEnvironment)
     {
         _translator = translator;
         _banking = banking;
@@ -46,6 +49,7 @@ public class IvrController : ControllerBase
         _logger = logger;
         _options = options.Value;
         _environment = environment;
+        _webHostEnvironment = webHostEnvironment;
     }
 
     private string T(string text, string lang)
@@ -116,8 +120,26 @@ public class IvrController : ControllerBase
             return null;
         }
 
-        var path = $"{_options.AudioBasePath.TrimEnd('/')}/{lang}/{promptKey}.aiff";
-        return $"{Request.Scheme}://{Request.Host}{path}";
+        var relativePath = $"{_options.AudioBasePath.TrimEnd('/')}/{lang}/{promptKey}.aiff";
+        var physicalPath = Path.Combine(
+            _webHostEnvironment.WebRootPath ?? "wwwroot",
+            _options.AudioBasePath.Trim('/'),
+            lang,
+            $"{promptKey}.aiff");
+
+        if (!System.IO.File.Exists(physicalPath))
+        {
+            _logger.LogWarning("Audio prompt file not found for language {Language} and prompt {PromptKey}: {PhysicalPath}", lang, promptKey, physicalPath);
+            return null;
+        }
+
+        var baseUrl = _options.PublicBaseUrl;
+        if (!string.IsNullOrWhiteSpace(baseUrl))
+        {
+            return $"{baseUrl.TrimEnd('/')}{relativePath}";
+        }
+
+        return $"{Request.Scheme}://{Request.Host}{relativePath}";
     }
 
     [HttpPost("start")]
