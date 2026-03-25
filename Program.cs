@@ -2,6 +2,7 @@ using Banking_IVR.Services;
 using Banking_IVR.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.Options;
 using Scalar.AspNetCore;
 
@@ -62,7 +63,15 @@ else
 }
 
 app.UseHttpsRedirection();
-app.UseStaticFiles();
+var contentTypeProvider = new FileExtensionContentTypeProvider();
+contentTypeProvider.Mappings[".aiff"] = "audio/aiff";
+contentTypeProvider.Mappings[".aif"] = "audio/aiff";
+contentTypeProvider.Mappings[".wav"] = "audio/wav";
+contentTypeProvider.Mappings[".mp3"] = "audio/mpeg";
+app.UseStaticFiles(new StaticFileOptions
+{
+    ContentTypeProvider = contentTypeProvider
+});
 app.MapHealthChecks("/health");
 app.MapGet("/", () => Results.Redirect(app.Environment.IsDevelopment() ? "/scalar" : "/health"));
 app.MapControllers();
