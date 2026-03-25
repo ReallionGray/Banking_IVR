@@ -6,6 +6,7 @@ public interface ISessionService
     bool Exists(string msisdn);
     string GetLanguage(string msisdn);
     void SetLanguage(string msisdn, string language);
+    bool TryGetCachedLanguage(string msisdn, out string language);
     bool GetStatus(string msisdn);
     void SetStatus(string msisdn, bool status);
     void SetRecipient(string msisdn, string accountNumber, string recipientName);

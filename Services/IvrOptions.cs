@@ -12,6 +12,11 @@ public sealed class IvrOptions
     [Range(1, 120)]
     public int SessionTimeoutMinutes { get; init; } = 20;
 
+    [Range(1, 1440)]
+    public int LanguagePreferenceCacheMinutes { get; init; } = 30;
+
+    public bool EnableLanguagePreferenceCache { get; init; } = true;
+
     [Range(typeof(decimal), "1", "1000000000")]
     public decimal InitialBalance { get; init; } = 250000m;
 
@@ -25,4 +30,13 @@ public sealed class IvrOptions
     public string AudioBasePath { get; init; } = "/audio";
 
     public string? PublicBaseUrl { get; init; }
+
+    public bool EnableCloudAudioGeneration { get; init; }
+
+    public string? ElevenLabsApiKey { get; init; }
+
+    [Required]
+    public string ElevenLabsModelId { get; init; } = "eleven_v3";
+
+    public string? ElevenLabsVoiceId { get; init; }
 }

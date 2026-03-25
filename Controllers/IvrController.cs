@@ -14,6 +14,7 @@ public class IvrController : ControllerBase
     private readonly ITranslationService _translator;
     private readonly IBankingService _banking;
     private readonly ISessionService _session;
+    private readonly IAudioPromptGenerationService _audioPromptGenerationService;
     private readonly ILogger<IvrController> _logger;
     private readonly IvrOptions _options;
     private readonly IHostEnvironment _environment;
@@ -38,6 +39,7 @@ public class IvrController : ControllerBase
         ITranslationService translator,
         IBankingService banking,
         ISessionService session,
+        IAudioPromptGenerationService audioPromptGenerationService,
         IOptions<IvrOptions> options,
         ILogger<IvrController> logger,
         IHostEnvironment environment,
@@ -46,6 +48,7 @@ public class IvrController : ControllerBase
         _translator = translator;
         _banking = banking;
         _session = session;
+        _audioPromptGenerationService = audioPromptGenerationService;
         _logger = logger;
         _options = options.Value;
         _environment = environment;
@@ -120,26 +123,65 @@ public class IvrController : ControllerBase
             return null;
         }
 
-        var relativePath = $"{_options.AudioBasePath.TrimEnd('/')}/{lang}/{promptKey}.aiff";
-        var physicalPath = Path.Combine(
-            _webHostEnvironment.WebRootPath ?? "wwwroot",
-            _options.AudioBasePath.Trim('/'),
-            lang,
-            $"{promptKey}.aiff");
-
-        if (!System.IO.File.Exists(physicalPath))
+        var physicalPath = FindAudioFile(lang, promptKey);
+        if (physicalPath is null || new FileInfo(physicalPath).Length == 0)
         {
-            _logger.LogWarning("Audio prompt file not found for language {Language} and prompt {PromptKey}: {PhysicalPath}", lang, promptKey, physicalPath);
+            try
+            {
+                physicalPath = _audioPromptGenerationService
+                    .EnsurePromptExistsAsync(lang, promptKey, HttpContext.RequestAborted)
+                    .GetAwaiter()
+                    .GetResult();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "On-demand cloud audio generation failed for language {Language} and prompt {PromptKey}", lang, promptKey);
+                return null;
+            }
+        }
+
+        if (physicalPath is null)
+        {
             return null;
         }
 
+        var fileInfo = new FileInfo(physicalPath);
+        if (fileInfo.Length == 0)
+        {
+            _logger.LogWarning(
+                "Audio prompt file is empty or invalid for language {Language} and prompt {PromptKey}: {PhysicalPath} ({Size} bytes)",
+                lang,
+                promptKey,
+                physicalPath,
+                fileInfo.Length);
+            return null;
+        }
+
+        var fileName = Path.GetFileName(physicalPath);
         var baseUrl = _options.PublicBaseUrl;
         if (!string.IsNullOrWhiteSpace(baseUrl))
         {
-            return $"{baseUrl.TrimEnd('/')}{relativePath}";
+            return $"{baseUrl.TrimEnd('/')}{_options.AudioBasePath.TrimEnd('/')}/{lang}/{fileName}";
         }
 
-        return $"{Request.Scheme}://{Request.Host}{relativePath}";
+        return $"{Request.Scheme}://{Request.Host}{_options.AudioBasePath.TrimEnd('/')}/{lang}/{fileName}";
+    }
+
+    private string? FindAudioFile(string lang, string promptKey)
+    {
+        var audioDirectory = Path.Combine(
+            _webHostEnvironment.WebRootPath ?? "wwwroot",
+            _options.AudioBasePath.Trim('/'),
+            lang);
+
+        var mp3Path = Path.Combine(audioDirectory, $"{promptKey}.mp3");
+        if (System.IO.File.Exists(mp3Path))
+        {
+            return mp3Path;
+        }
+
+        _logger.LogWarning("Audio prompt file not found for language {Language} and prompt {PromptKey} in {Directory}", lang, promptKey, audioDirectory);
+        return null;
     }
 
     [HttpPost("start")]
@@ -151,6 +193,16 @@ public class IvrController : ControllerBase
         }
 
         _session.Initialize(msisdn);
+
+        if (_options.EnableLanguagePreferenceCache &&
+            _session.TryGetCachedLanguage(msisdn, out var cachedLanguage))
+        {
+            _session.SetLanguage(msisdn, cachedLanguage);
+
+            var cachedResponse = new VoiceResponse();
+            cachedResponse.Redirect(new Uri("/api/ivr/menu", UriKind.Relative));
+            return Twiml(cachedResponse);
+        }
 
         var res = new VoiceResponse();
         var gather = new Gather(1, "/api/ivr/set-language", "POST");

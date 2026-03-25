@@ -8,6 +8,8 @@ public class InMemorySessionService : ISessionService
 {
     private readonly IMemoryCache _cache;
     private readonly TimeSpan _sessionTimeout;
+    private readonly TimeSpan _languagePreferenceCacheTimeout;
+    private readonly bool _enableLanguagePreferenceCache;
     private readonly string _defaultLanguage;
     private readonly Dictionary<string, UssdSetting> _settings;
     private readonly Lock _lock = new();
@@ -16,6 +18,8 @@ public class InMemorySessionService : ISessionService
     {
         _cache = cache;
         _sessionTimeout = TimeSpan.FromMinutes(options.Value.SessionTimeoutMinutes);
+        _languagePreferenceCacheTimeout = TimeSpan.FromMinutes(options.Value.LanguagePreferenceCacheMinutes);
+        _enableLanguagePreferenceCache = options.Value.EnableLanguagePreferenceCache;
         _defaultLanguage = options.Value.DefaultLanguage;
         _settings = new Dictionary<string, UssdSetting>(StringComparer.Ordinal)
         {
@@ -98,7 +102,27 @@ public class InMemorySessionService : ISessionService
             setting.Status = true;
         }
 
+        CacheLanguage(msisdn, language);
         TouchRuntimeSession(msisdn);
+    }
+
+    public bool TryGetCachedLanguage(string msisdn, out string language)
+    {
+        if (!_enableLanguagePreferenceCache)
+        {
+            language = string.Empty;
+            return false;
+        }
+
+        if (_cache.TryGetValue(GetLanguagePreferenceCacheKey(msisdn), out string? cachedLanguage) &&
+            !string.IsNullOrWhiteSpace(cachedLanguage))
+        {
+            language = cachedLanguage;
+            return true;
+        }
+
+        language = string.Empty;
+        return false;
     }
 
     public bool GetStatus(string msisdn)
@@ -173,6 +197,22 @@ public class InMemorySessionService : ISessionService
 
     private void TouchRuntimeSession(string msisdn)
         => _ = GetRuntimeSession(msisdn);
+
+    private void CacheLanguage(string msisdn, string language)
+    {
+        if (!_enableLanguagePreferenceCache)
+        {
+            return;
+        }
+
+        _cache.Set(GetLanguagePreferenceCacheKey(msisdn), language, new MemoryCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = _languagePreferenceCacheTimeout
+        });
+    }
+
+    private static string GetLanguagePreferenceCacheKey(string msisdn)
+        => $"langpref:{msisdn}";
 
     private sealed class RuntimeSession
     {

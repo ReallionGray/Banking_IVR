@@ -13,6 +13,10 @@ builder.Services.AddOpenApi();
 builder.Services.AddControllers();
 builder.Services.AddMemoryCache();
 builder.Services.AddHealthChecks();
+builder.Services.AddHttpClient<IAudioPromptGenerationService, AudioPromptGenerationService>(client =>
+{
+    client.BaseAddress = new Uri("https://api.elevenlabs.io/");
+});
 builder.Services
     .AddOptions<IvrOptions>()
     .Bind(builder.Configuration.GetSection(IvrOptions.SectionName))
@@ -41,6 +45,19 @@ if (string.Equals(ivrOptions.PersistenceMode, "PostgreSql", StringComparison.Ord
     using var scope = app.Services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<BankingIvrDbContext>();
     dbContext.Database.Migrate();
+}
+
+using (var scope = app.Services.CreateScope())
+{
+    var audioPromptGenerator = scope.ServiceProvider.GetRequiredService<IAudioPromptGenerationService>();
+    try
+    {
+        await audioPromptGenerator.GenerateStaticPromptsAsync();
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogWarning(ex, "Cloud audio generation failed during startup. The app will continue with local audio/TTS fallback.");
+    }
 }
 
 app.UseExceptionHandler();
