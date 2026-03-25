@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: banking-ivr
+    runtime: docker
+    plan: starter
+    autoDeploy: true
+    healthCheckPath: /health
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: Ivr__PersistenceMode
+        value: InMemory

@@ -1,6 +1,7 @@
 using Banking_IVR.Services;
 using Banking_IVR.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Options;
 using Scalar.AspNetCore;
 
@@ -42,6 +43,10 @@ if (string.Equals(ivrOptions.PersistenceMode, "PostgreSql", StringComparison.Ord
 }
 
 app.UseExceptionHandler();
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
 
 if (app.Environment.IsDevelopment())
 {
