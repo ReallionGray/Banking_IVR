@@ -20,4 +20,7 @@ public sealed class IvrOptions
 
     [Required]
     public string DefaultLanguage { get; init; } = "en";
+
+    [Required]
+    public string AudioBasePath { get; init; } = "/audio";
 }

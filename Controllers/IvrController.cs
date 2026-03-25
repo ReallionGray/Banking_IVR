@@ -16,6 +16,21 @@ public class IvrController : ControllerBase
     private readonly ILogger<IvrController> _logger;
     private readonly IvrOptions _options;
     private readonly IHostEnvironment _environment;
+    private static readonly HashSet<string> AudioFirstLanguages = ["pidgin", "yo", "ig", "ha"];
+    private static readonly HashSet<string> AudioPromptKeys =
+    [
+        "welcome",
+        "menu",
+        "enter-recipient",
+        "invalid-account",
+        "enter-amount",
+        "enter-pin",
+        "transfer-cancelled",
+        "invalid-selection",
+        "invalid-pin",
+        "thank-you",
+        "missing-phone"
+    ];
 
     public IvrController(
         ITranslationService translator,
@@ -39,23 +54,70 @@ public class IvrController : ControllerBase
     private static (string Voice, string Language) GetSpeechProfile(string lang) => lang switch
     {
         "en" => ("woman", "en-US"),
-        "pidgin" => ("woman", "en-US"),
+        "pidgin" => ("woman", "en-GB"),
         "yo" => ("woman", "en-US"),
         "ig" => ("woman", "en-US"),
         "ha" => ("woman", "en-US"),
         _ => ("woman", "en-US")
     };
 
-    private void Say(Gather gather, string text, string lang)
+    private void Say(Gather gather, string text, string lang, string? promptKey = null)
     {
+        if (TryAppendAudio(gather, lang, promptKey))
+        {
+            return;
+        }
+
         var profile = GetSpeechProfile(lang);
         gather.Say(text, profile.Voice, profile.Language);
     }
 
-    private void Say(VoiceResponse response, string text, string lang)
+    private void Say(VoiceResponse response, string text, string lang, string? promptKey = null)
     {
+        if (TryAppendAudio(response, lang, promptKey))
+        {
+            return;
+        }
+
         var profile = GetSpeechProfile(lang);
         response.Say(text, profile.Voice, profile.Language);
+    }
+
+    private bool TryAppendAudio(Gather gather, string lang, string? promptKey)
+    {
+        var audioUrl = BuildAudioUrl(lang, promptKey);
+        if (audioUrl is null)
+        {
+            return false;
+        }
+
+        gather.Play(audioUrl);
+        return true;
+    }
+
+    private bool TryAppendAudio(VoiceResponse response, string lang, string? promptKey)
+    {
+        var audioUrl = BuildAudioUrl(lang, promptKey);
+        if (audioUrl is null)
+        {
+            return false;
+        }
+
+        response.Play(audioUrl);
+        return true;
+    }
+
+    private string? BuildAudioUrl(string lang, string? promptKey)
+    {
+        if (string.IsNullOrWhiteSpace(promptKey) ||
+            !AudioFirstLanguages.Contains(lang) ||
+            !AudioPromptKeys.Contains(promptKey))
+        {
+            return null;
+        }
+
+        var path = $"{_options.AudioBasePath.TrimEnd('/')}/{lang}/{promptKey}.aiff";
+        return $"{Request.Scheme}://{Request.Host}{path}";
     }
 
     [HttpPost("start")]
@@ -73,7 +135,8 @@ public class IvrController : ControllerBase
         Say(
             gather,
             "Welcome to the banking service. Press 1 for English. Press 2 for Pidgin. Press 3 for Yoruba. Press 4 for Igbo. Press 5 for Hausa.",
-            _options.DefaultLanguage);
+            _options.DefaultLanguage,
+            "welcome");
         res.Append(gather);
         res.Redirect(new Uri("/api/ivr/start", UriKind.Relative));
 
@@ -118,7 +181,7 @@ public class IvrController : ControllerBase
 
         var res = new VoiceResponse();
         var gather = new Gather(1, "/api/ivr/menu-action", "POST");
-        Say(gather, T("Press 1 for balance. Press 2 for transfer.", lang), lang);
+        Say(gather, T("Press 1 for balance. Press 2 for transfer.", lang), lang, "menu");
         res.Append(gather);
         res.Redirect(new Uri("/api/ivr/menu", UriKind.Relative));
 
@@ -178,7 +241,7 @@ public class IvrController : ControllerBase
 
         var res = new VoiceResponse();
         var gather = new Gather(10, "/api/ivr/confirm-recipient", "POST");
-        Say(gather, T("Enter the 10 digit recipient account number.", lang), lang);
+        Say(gather, T("Enter the 10 digit recipient account number.", lang), lang, "enter-recipient");
         res.Append(gather);
         res.Redirect(new Uri("/api/ivr/enter-recipient", UriKind.Relative));
 
@@ -202,7 +265,9 @@ public class IvrController : ControllerBase
                 T("The account number entered is invalid. Please enter a valid 10 digit account number.", lang),
                 "/api/ivr/confirm-recipient",
                 10,
-                redirectPath: "/api/ivr/enter-recipient");
+                redirectPath: "/api/ivr/enter-recipient",
+                language: lang,
+                promptKey: "invalid-account");
         }
 
         var recipientName = _banking.ResolveRecipientName(accountNumber);
@@ -238,7 +303,7 @@ public class IvrController : ControllerBase
 
         var res = new VoiceResponse();
         var gather = new Gather(null, "/api/ivr/confirm-details", "POST", finishOnKey: "#");
-        Say(gather, T("Enter transfer amount in naira, then press the hash key.", lang), lang);
+        Say(gather, T("Enter transfer amount in naira, then press the hash key.", lang), lang, "enter-amount");
         res.Append(gather);
         res.Redirect(new Uri("/api/ivr/enter-amount", UriKind.Relative));
 
@@ -265,7 +330,8 @@ public class IvrController : ControllerBase
                 "/api/ivr/confirm-details",
                 null,
                 "#",
-                "/api/ivr/enter-amount");
+                "/api/ivr/enter-amount",
+                lang);
         }
 
         _session.SetAmount(msisdn, amount);
@@ -299,19 +365,19 @@ public class IvrController : ControllerBase
         if (digit == "1")
         {
             var gather = new Gather(4, "/api/ivr/execute-transfer", "POST");
-            Say(gather, T("Enter your 4 digit transfer PIN.", lang), lang);
+            Say(gather, T("Enter your 4 digit transfer PIN.", lang), lang, "enter-pin");
             res.Append(gather);
         }
         else if (digit == "2")
         {
             var gather = new Gather(1, "/api/ivr/post-action", "POST");
-            Say(gather, T("Transfer cancelled. Press 1 for menu or 2 to end.", lang), lang);
+            Say(gather, T("Transfer cancelled. Press 1 for menu or 2 to end.", lang), lang, "transfer-cancelled");
             res.Append(gather);
         }
         else
         {
             var gather = new Gather(1, "/api/ivr/transfer-pin", "POST");
-            Say(gather, T("Invalid selection. Press 1 to continue or 2 to cancel.", lang), lang);
+            Say(gather, T("Invalid selection. Press 1 to continue or 2 to cancel.", lang), lang, "invalid-selection");
             res.Append(gather);
         }
 
@@ -347,7 +413,7 @@ public class IvrController : ControllerBase
         }
         else
         {
-            Say(gather, T("Invalid PIN. Press 1 for menu or 2 to end.", lang), lang);
+            Say(gather, T("Invalid PIN. Press 1 for menu or 2 to end.", lang), lang, "invalid-pin");
         }
 
         res.Append(gather);
@@ -372,7 +438,7 @@ public class IvrController : ControllerBase
                 _session.SetStatus(msisdn, false);
             }
 
-            Say(res, "Thank you for using the banking service.", _options.DefaultLanguage);
+            Say(res, "Thank you for using the banking service.", _options.DefaultLanguage, "thank-you");
             res.Hangup();
         }
 
@@ -401,7 +467,7 @@ public class IvrController : ControllerBase
         }
 
         _logger.LogWarning("IVR request rejected because MSISDN/From was missing.");
-        failure = ErrorResponse("Unable to process this call because the phone number is missing.");
+        failure = ErrorResponse("Unable to process this call because the phone number is missing.", "missing-phone");
         return false;
     }
 
@@ -418,10 +484,10 @@ public class IvrController : ControllerBase
     private static bool IsValidAccountNumber(string accountNumber)
         => accountNumber.Length == 10 && accountNumber.All(char.IsDigit);
 
-    private ContentResult ErrorResponse(string message)
+    private ContentResult ErrorResponse(string message, string? promptKey = null)
     {
         var response = new VoiceResponse();
-        Say(response, message, _options.DefaultLanguage);
+        Say(response, message, _options.DefaultLanguage, promptKey);
         response.Hangup();
         return Twiml(response);
     }
@@ -431,11 +497,13 @@ public class IvrController : ControllerBase
         string action,
         int? numDigits,
         string? finishOnKey = null,
-        string? redirectPath = null)
+        string? redirectPath = null,
+        string? language = null,
+        string? promptKey = null)
     {
         var response = new VoiceResponse();
         var gather = new Gather(numDigits, action, "POST", finishOnKey);
-        Say(gather, message, _options.DefaultLanguage);
+        Say(gather, message, language ?? _options.DefaultLanguage, promptKey);
         response.Append(gather);
         response.Redirect(new Uri(redirectPath ?? action, UriKind.Relative));
         return Twiml(response);

@@ -6,7 +6,7 @@ public partial class TranslationService : ITranslationService
 {
     private static readonly Dictionary<string, string> PidginTranslations = new(StringComparer.Ordinal)
     {
-        ["Press 1 for balance. Press 2 for transfer."] = "Press 1 to hear your balance. Press 2 to make transfer.",
+        ["Press 1 for balance. Press 2 for transfer."] = "Press 1 to know how much remain for your account. Press 2 if you wan transfer money.",
         ["Enter the 10 digit recipient account number."] = "Enter the 10 digit account number wey you wan send money to.",
         ["The account number entered is invalid. Please enter a valid 10 digit account number."] = "The account number no correct. Abeg enter correct 10 digit account number.",
         ["Enter transfer amount in naira, then press the hash key."] = "Enter the amount for naira, then press the hash key.",

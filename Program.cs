@@ -62,6 +62,7 @@ else
 }
 
 app.UseHttpsRedirection();
+app.UseStaticFiles();
 app.MapHealthChecks("/health");
 app.MapGet("/", () => Results.Redirect(app.Environment.IsDevelopment() ? "/scalar" : "/health"));
 app.MapControllers();

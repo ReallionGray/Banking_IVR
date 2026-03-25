@@ -17,6 +17,9 @@ public class VoiceResponse
             new XAttribute("language", language),
             text));
 
+    public void Play(string url)
+        => _verbs.Add(new XElement("Play", url));
+
     public void Hangup() => _verbs.Add(new XElement("Hangup"));
 
     public override string ToString()

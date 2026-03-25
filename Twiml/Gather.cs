@@ -24,6 +24,9 @@ public class Gather
             new XAttribute("language", language),
             text));
 
+    public void Play(string url)
+        => _children.Add(new XElement("Play", url));
+
     public XElement ToXElement()
     {
         var element = new XElement("Gather",
