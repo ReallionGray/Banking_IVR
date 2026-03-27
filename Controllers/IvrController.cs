@@ -206,11 +206,11 @@ public class IvrController : ControllerBase
 
         var res = new VoiceResponse();
         var gather = new Gather(1, "/api/ivr/set-language", "POST");
+        var spokenPhoneNumber = FormatPhoneNumberForSpeech(msisdn);
         Say(
             gather,
-            "Welcome to the banking service. Press 1 for English. Press 2 for Pidgin. Press 3 for Yoruba. Press 4 for Igbo. Press 5 for Hausa.",
-            _options.DefaultLanguage,
-            "welcome");
+            $"Welcome to the banking service. We are speaking with phone number {spokenPhoneNumber}. Press 1 for English. Press 2 for Pidgin. Press 3 for Yoruba. Press 4 for Igbo. Press 5 for Hausa.",
+            _options.DefaultLanguage);
         res.Append(gather);
         res.Redirect(new Uri("/api/ivr/start", UriKind.Relative));
 
@@ -557,6 +557,9 @@ public class IvrController : ControllerBase
 
     private static bool IsValidAccountNumber(string accountNumber)
         => accountNumber.Length == 10 && accountNumber.All(char.IsDigit);
+
+    private static string FormatPhoneNumberForSpeech(string msisdn)
+        => string.Join(' ', msisdn.Select(character => character == '+' ? "plus" : character.ToString()));
 
     private ContentResult ErrorResponse(string message, string? promptKey = null)
     {

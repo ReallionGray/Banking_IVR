@@ -170,6 +170,20 @@ public partial class TranslationService : ITranslationService
             };
         }
 
+        var welcomeMatch = WelcomeWithPhoneRegex().Match(text);
+        if (welcomeMatch.Success)
+        {
+            var phone = welcomeMatch.Groups["phone"].Value;
+            return language switch
+            {
+                "pidgin" => $"Welcome to the banking service. We dey talk with phone number {phone}. Press 1 for English. Press 2 for Pidgin. Press 3 for Yoruba. Press 4 for Igbo. Press 5 for Hausa.",
+                "yo" => $"E kaabo si ise ifowopamo wa. A n ba nọmba foonu {phone} sọrọ. Tẹ 1 fun Gẹẹsi. Tẹ 2 fun Pidgin. Tẹ 3 fun Yoruba. Tẹ 4 fun Igbo. Tẹ 5 fun Hausa.",
+                "ig" => $"Nnoo na ọrụ banki anyi. Anyị na-ekwu na nọmba ekwentị {phone}. Pịa 1 maka Bekee. Pịa 2 maka Pidgin. Pịa 3 maka Yoruba. Pịa 4 maka Igbo. Pịa 5 maka Hausa.",
+                "ha" => $"Barka da zuwa sabis din bankinmu. Muna magana da lambar waya {phone}. Danna 1 don Turanci. Danna 2 don Pidgin. Danna 3 don Yoruba. Danna 4 don Igbo. Danna 5 don Hausa.",
+                _ => text
+            };
+        }
+
         return text;
     }
 
@@ -187,4 +201,7 @@ public partial class TranslationService : ITranslationService
 
     [GeneratedRegex(@"^Transfer of (?<amount>[\d,]+) naira to (?<name>.+) successful\. Press 1 for menu or 2 to end\.$")]
     private static partial Regex TransferSuccessRegex();
+
+    [GeneratedRegex(@"^Welcome to the banking service\. We are speaking with phone number (?<phone>.+)\. Press 1 for English\. Press 2 for Pidgin\. Press 3 for Yoruba\. Press 4 for Igbo\. Press 5 for Hausa\.$")]
+    private static partial Regex WelcomeWithPhoneRegex();
 }
