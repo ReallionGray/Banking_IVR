@@ -209,7 +209,7 @@ public class IvrController : ControllerBase
         var spokenPhoneNumber = FormatPhoneNumberForSpeech(msisdn);
         Say(
             gather,
-            $"Welcome to the banking service. We are speaking with phone number {spokenPhoneNumber}. Press 1 for English. Press 2 for Pidgin. Press 3 for Yoruba. Press 4 for Igbo. Press 5 for Hausa.",
+            $"Welcome to the banking service. Your number is {spokenPhoneNumber}. Press 1 for English. Press 2 for Pidgin. Press 3 for Yoruba. Press 4 for Igbo. Press 5 for Hausa.",
             _options.DefaultLanguage);
         res.Append(gather);
         res.Redirect(new Uri("/api/ivr/start", UriKind.Relative));
