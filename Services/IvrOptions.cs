@@ -33,10 +33,16 @@ public sealed class IvrOptions
 
     public bool EnableCloudAudioGeneration { get; init; }
 
+    public TtsProviderType TtsProvider { get; init; } = TtsProviderType.None;
+
     public string? ElevenLabsApiKey { get; init; }
 
     [Required]
     public string ElevenLabsModelId { get; init; } = "eleven_v3";
 
     public string? ElevenLabsVoiceId { get; init; }
+
+    public string? GoogleServiceAccountJson { get; init; }
+
+    public string? GoogleTtsVoiceName { get; init; }
 }

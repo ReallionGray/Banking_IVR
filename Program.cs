@@ -13,9 +13,13 @@ builder.Services.AddOpenApi();
 builder.Services.AddControllers();
 builder.Services.AddMemoryCache();
 builder.Services.AddHealthChecks();
-builder.Services.AddHttpClient<IAudioPromptGenerationService, AudioPromptGenerationService>(client =>
+builder.Services.AddHttpClient<ElevenLabsAudioPromptProvider>(client =>
 {
     client.BaseAddress = new Uri("https://api.elevenlabs.io/");
+});
+builder.Services.AddHttpClient<GoogleTtsAudioPromptProvider>(client =>
+{
+    client.BaseAddress = new Uri("https://texttospeech.googleapis.com/");
 });
 builder.Services
     .AddOptions<IvrOptions>()
@@ -37,6 +41,19 @@ else
 
 builder.Services.AddSingleton<ITranslationService, TranslationService>();
 builder.Services.AddSingleton<IBankingService, BankingService>();
+builder.Services.AddSingleton<NullAudioPromptProvider>();
+builder.Services.AddScoped<IAudioPromptGenerationService, AudioPromptGenerationService>();
+builder.Services.AddScoped<IAudioPromptProvider>(serviceProvider =>
+{
+    var options = serviceProvider.GetRequiredService<IOptions<IvrOptions>>().Value;
+
+    return options.TtsProvider switch
+    {
+        TtsProviderType.ElevenLabs => serviceProvider.GetRequiredService<ElevenLabsAudioPromptProvider>(),
+        TtsProviderType.Google => serviceProvider.GetRequiredService<GoogleTtsAudioPromptProvider>(),
+        _ => serviceProvider.GetRequiredService<NullAudioPromptProvider>()
+    };
+});
 
 var app = builder.Build();
 
